@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJECT: R.U.S.H.I. [v29.0]</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
+
+        :root {
+            --bg-color: #050505;
+            --primary: #ff4655;
+            --primary-glow: rgba(255, 70, 85, 0.6);
+            --dark-panel: #111;
+            --text-main: #ece8e1;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- SCENE STATE MACHINE --- */
+        .scene {
+            display: none;
+            width: 100%;
+            min-height: 100vh;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            padding: 40px 0;
+        }
+        #scene-boot { justify-content: center; }
+        .active-scene { 
+            display: flex; 
+            opacity: 1;
+        }
+
+        /* --- UI ELEMENTS --- */
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--text-main);
+            text-shadow: 2px 2px 0px var(--primary);
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #888;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .glitch-btn {
+            background: transparent;
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            border: 2px solid var(--primary);
+            padding: 15px 40px;
+            cursor: pointer;
+            position: relative;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+
+        .glitch-btn:hover {
+            background: var(--primary);
+            color: var(--bg-color);
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: scale(1.05);
+        }
+
+        /* --- HUD --- */
+        .hud {
+            width: 95%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        /* --- THE GRID (56 CARDS) --- */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            width: 95%;
+            max-width: 1200px;
+            perspective: 1000px;
+        }
+
+        @media (max-width: 900px) {
+            .game-board { grid-template-columns: repeat(6, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .game-board { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        }
+
+        .card {
+            aspect-ratio: 1 / 1;
+            background-color: transparent;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s;
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card.matched .card-inner { 
+            transform: rotateY(180deg) scale(0.9);
+            box-shadow: 0 0 15px var(--primary-glow);
+            opacity: 0.5; /* Dim matched cards */
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .card-front {
+            background-color: var(--dark-panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: repeating-linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%, #111);
+            background-size: 10px 10px;
+        }
+
+        .card-front::after {
+            content: '?';
+            font-family: 'Orbitron';
+            font-size: 1.5rem;
+            color: #444;
+        }
+
+        .card-back {
+            background-color: #fff;
+            transform: rotateY(180deg);
+            background-size: cover;
+            background-position: center;
+            border-color: var(--primary);
+        }
+
+        /* --- FINAL VAULT (GALLERY) --- */
+        .gallery-container {
+            width: 95%;
+            max-width: 1400px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            grid-auto-flow: dense;
+            margin-top: 20px;
+        }
+
+        .gallery-item {
+            position: relative;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            aspect-ratio: 1 / 1;
+        }
+        
+        .gallery-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        .gallery-item img, .gallery-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Make specific elements larger in the grid */
+        .featured {
+            grid-column: span 2;
+            grid-row: span 2;
+        }
+
+        /* --- PARTICLES --- */
+        .particle {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: explode 0.8s ease-out forwards;
+            z-index: 100;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0) translate(var(--tx), var(--ty)); opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="scene-boot" class="scene active-scene">
+        <h1 id="typewriter"></h1>
+        <p class="subtitle">System locked. Massive Memory Verification Required (56 Datablocks).</p>
+        <button class="glitch-btn" onclick="LoadScene('scene-game')">INITIATE DECRYPTION</button>
+    </div>
+
+    <div id="scene-game" class="scene">
+        <div class="hud">
+            <div>TARGET: RUSHI | AGE: 29</div>
+            <div>MATCHES: <span id="match-count" style="color: var(--primary);">0</span> / 28</div>
+        </div>
+        <div class="game-board" id="board"></div>
+    </div>
+
+    <div id="scene-vault" class="scene">
+        <h1>ACCESS GRANTED</h1>
+        <p class="subtitle">29 Years. Countless Memories. Happy Birthday, Rushi.</p>
+        
+        <div class="gallery-container">
+            <div class="gallery-item featured"><video src="IMG_0708.MOV" autoplay loop muted controls></video></div>
+            
+            <div class="gallery-item featured"><img src="PXL_20260128_110131788.jpg" alt="Wedding"></div>
+            <div class="gallery-item"><img src="IMG_20141225_210130.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG-20190822-WA0025.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG-20190822-WA0020.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG-20190601-WA0003.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG-20181226-WA0014.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG-20170707-WA0024.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_20221103_181533.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_20210520_220937.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_20170920_083454092.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_20150112_210140.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_20141214_140104.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_2505.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_0544.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_0362.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG_0234.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="Cloud N12_20170423_085849.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="11c2d6f0-3c8a-479c-9463-6e84409403c1.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="5x7.jpg" alt="Memory"></div>
+            <div class="gallery-item featured"><img src="instasquare.photoeditor.effect.cutout_2026411322154.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="IMG-20241114-WA0013.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="Screenshot_20200316_223721.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="PXL_20260214_173236258.jpg" alt="Memory"></div>
+            <div class="gallery-item featured"><img src="PXL_20260206_191228243.TS-000.jpg" alt="Memory"></div>
+            <div class="gallery-item featured"><img src="PXL_20260204_155820708.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="PXL_20260128_032622363.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="PXL_20260124_084335746.MP.jpg" alt="Memory"></div>
+            <div class="gallery-item"><img src="instasquare.photoeditor.effect.cutout_20264112599497.jpg" alt="Memory"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 28 IMAGES FOR THE MEMORY MATCH ---
+        const levelAssets = [
+            'IMG_20141225_210130.jpg', 'IMG-20190822-WA0025.jpg', 'IMG-20190822-WA0020.jpg', 'IMG-20190601-WA0003.jpg',
+            'IMG-20181226-WA0014.jpg', 'IMG-20170707-WA0024.jpg', 'IMG_20221103_181533.jpg', 'IMG_20210520_220937.jpg',
+            'IMG_20170920_083454092.jpg', 'IMG_20150112_210140.jpg', 'IMG_20141214_140104.jpg', 'IMG_2505.jpg',
+            'IMG_0544.jpg', 'IMG_0362.jpg', 'IMG_0234.jpg', 'Cloud N12_20170423_085849.jpg',
+            '11c2d6f0-3c8a-479c-9463-6e84409403c1.jpg', '5x7.jpg', 'instasquare.photoeditor.effect.cutout_2026411322154.jpg', 
+            'IMG-20241114-WA0013.jpg', 'Screenshot_20200316_223721.jpg', 'PXL_20260214_173236258.jpg', 
+            'PXL_20260206_191228243.TS-000.jpg', 'PXL_20260204_155820708.jpg', 'PXL_20260128_110131788.jpg', 
+            'PXL_20260128_032622363.jpg', 'PXL_20260124_084335746.MP.jpg', 'instasquare.photoeditor.effect.cutout_20264112599497.jpg'
+        ];
+        
+        // Duplicate array to make 56 cards (28 pairs)
+        let deck = [...levelAssets, ...levelAssets];
+        
+        // State variables
+        let firstSelection = null;
+        let secondSelection = null;
+        let lockInput = false;
+        let matches = 0;
+        const totalMatchesRequired = 28;
+
+        // --- SCENE MANAGER ---
+        function LoadScene(sceneId) {
+            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active-scene'));
+            document.getElementById(sceneId).classList.add('active-scene');
+            
+            window.scrollTo(0, 0);
+
+            if(sceneId === 'scene-game') { 
+                ShuffleDeck();
+                InstantiateCards(); 
+            }
+        }
+
+        // --- TYPEWRITER EFFECT ---
+        const titleText = "PROJECT: R.U.S.H.I. [v29]";
+        let typeIndex = 0;
+        function TypeWriter() {
+            if (typeIndex < titleText.length) {
+                document.getElementById("typewriter").innerHTML += titleText.charAt(typeIndex);
+                typeIndex++;
+                setTimeout(TypeWriter, 80);
+            }
+        }
+        window.onload = TypeWriter;
+
+        // --- GAME LOGIC ---
+        function ShuffleDeck() {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function InstantiateCards() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            deck.forEach((asset) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.id = asset;
+                
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-front"></div>
+                        <div class="card-back" style="background-image: url('${asset}')"></div>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => OnCardClick(card));
+                board.appendChild(card);
+            });
+        }
+
+        function OnCardClick(card) {
+            if (lockInput || card === firstSelection || card.classList.contains('matched')) return;
+
+            card.classList.add('flipped');
+
+            if (!firstSelection) {
+                firstSelection = card;
+                return;
+            }
+
+            secondSelection = card;
+            CheckCollision();
+        }
+
+        function CheckCollision() {
+            lockInput = true;
+            const isMatch = firstSelection.dataset.id === secondSelection.dataset.id;
+
+            if (isMatch) {
+                matches++;
+                document.getElementById('match-count').innerText = matches;
+                
+                const rect = secondSelection.getBoundingClientRect();
+                SpawnParticles(rect.left + rect.width/2, rect.top + rect.height/2);
+
+                firstSelection.classList.add('matched');
+                secondSelection.classList.add('matched');
+                ResetState();
+
+                if (matches === totalMatchesRequired) {
+                    setTimeout(() => { LoadScene('scene-vault'); }, 1500);
+                }
+            } else {
+                setTimeout(() => {
+                    firstSelection.classList.remove('flipped');
+                    secondSelection.classList.remove('flipped');
+                    ResetState();
+                }, 800); 
+            }
+        }
+
+        function ResetState() {
+            firstSelection = null;
+            secondSelection = null;
+            lockInput = false;
+        }
+
+        // --- PARTICLE SYSTEM ---
+        function SpawnParticles(x, y) {
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                
+                const colors = ['#ff4655', '#ece8e1', '#333'];
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                const size = Math.random() * 8 + 4;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                
+                const tx = (Math.random() - 0.5) * 200;
+                const ty = (Math.random() - 0.5) * 200;
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => { particle.remove(); }, 800);
+            }
+        }
+    </script>
+</body>
+</html>
