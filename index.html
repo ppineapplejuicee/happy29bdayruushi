@@ -232,6 +232,8 @@
 </head>
 <body>
 
+    <audio id="bgMusic" src="background.mp3" loop></audio>
+
     <div id="scene-boot" class="scene active-scene">
         <h1 id="typewriter"></h1>
         <p class="subtitle">System locked. Massive Memory Verification Required (56 Datablocks).</p>
@@ -315,6 +317,7 @@
             window.scrollTo(0, 0);
 
             if(sceneId === 'scene-game') { 
+                document.getElementById('bgMusic').play(); // START MUSIC
                 ShuffleDeck();
                 InstantiateCards(); 
             }
